@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-cream: #f3ede2;
+  --color-cream-deep: #efe7d8;
+  --color-card: #f5efe4;
+  --color-card-hover: #f8f3ea;
+  --color-border: #e3d9c7;
+  --color-chip-border: #d6cbb6;
+  --color-ink: #1a1a1a;
+  --color-body: #524d43;
+  --color-body-strong: #3a352f;
+  --color-muted: #857a66;
+  --color-muted-2: #a89f8d;
+  --color-ticker-amp: #c3b8a1;
+  --color-accent: #b87045;
+  --color-accent-2: #9c6f4f;
+  --color-pin: #c2703f;
+  --color-green: #2faa5a;
+  --color-green-bright: #6fe39a;
+  --color-pcc-blue: #14507e;
+
+  --font-heading: var(--font-oswald), "Oswald", sans-serif;
+  --font-body: "General Sans", var(--font-oswald), system-ui, sans-serif;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-cream: var(--color-cream);
+  --color-cream-deep: var(--color-cream-deep);
+  --color-card: var(--color-card);
+  --color-card-hover: var(--color-card-hover);
+  --color-border: var(--color-border);
+  --color-chip-border: var(--color-chip-border);
+  --color-ink: var(--color-ink);
+  --color-body: var(--color-body);
+  --color-body-strong: var(--color-body-strong);
+  --color-muted: var(--color-muted);
+  --color-muted-2: var(--color-muted-2);
+  --color-ticker-amp: var(--color-ticker-amp);
+  --color-accent: var(--color-accent);
+  --color-accent-2: var(--color-accent-2);
+  --color-pin: var(--color-pin);
+  --color-green: var(--color-green);
+  --color-green-bright: var(--color-green-bright);
+  --color-pcc-blue: var(--color-pcc-blue);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cream);
+  color: var(--color-body);
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+
+a,
+button {
+  transition:
+    color 0.35s ease-out,
+    background-color 0.35s ease-out,
+    border-color 0.35s ease-out,
+    opacity 0.35s ease-out,
+    transform 0.35s ease-out,
+    box-shadow 0.35s ease-out;
+}
+
+/* About-section skill tickers — two duplicated <sc-for> runs scrolled by half their
+   combined width, so the loop seam is invisible. */
+@keyframes ticker-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes ticker-right {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.ticker-row:hover .ticker-track {
+  animation-play-state: paused;
+}
+
+@keyframes status-blink-green {
+  0%, 100% { background: var(--color-green); box-shadow: 0 0 0 0 rgba(47, 170, 90, 0.5); }
+  50% { background: var(--color-green-bright); box-shadow: 0 0 0 4px rgba(47, 170, 90, 0); }
 }
