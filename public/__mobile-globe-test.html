@@ -17,6 +17,13 @@
       var doc = f.contentDocument;
       var trigger = doc.querySelector('button[aria-label="See where visitors are from"]');
       if (trigger) trigger.click();
+      setTimeout(function() {
+        var tabs = doc.querySelectorAll('div > button');
+        var boardTab = Array.from(doc.querySelectorAll('button')).find(function(b) {
+          return b.textContent.indexOf('LEADERBOARD') !== -1;
+        });
+        if (boardTab) boardTab.click();
+      }, 700);
     }, 800);
   });
 </script>
