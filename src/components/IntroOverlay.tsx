@@ -112,23 +112,31 @@ export default function IntroOverlay() {
         if (deadRef.current) return;
         await sleep(180);
       }
-      // settle: stop blink, hold cursor solid, then fade it out
+      // settle: stop blink, hold cursor solid, then fade it out — purely
+      // cosmetic once "Colin" lands, no longer gates anything else
       stopBlink();
       if (deadRef.current) return;
       if (cursorRef.current) cursorRef.current.style.opacity = "1";
       await sleep(650);
       if (deadRef.current) return;
       if (cursorRef.current) await gsap.to(cursorRef.current, { opacity: 0, duration: 0.6, ease: "power2.out" });
-      await sleep(60);
-      if (deadRef.current) return;
-      // reveal tagline, then button (200ms stagger)
-      gsap.fromTo(taglineRef.current, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.65, ease: "power2.out" });
-      gsap.fromTo(
-        btnRef.current,
-        { opacity: 0, y: 16 },
-        { opacity: 1, y: 0, duration: 0.65, delay: 0.2, ease: "power2.out" },
-      );
     };
+
+    // Reveal the tagline + Enter button on their own short timeline,
+    // independent of the typewriter cycle above — a user can click through
+    // immediately without waiting for it to reach "Colin". A small stagger
+    // keeps the entrance from feeling like an instant dump of everything
+    // at once, without tying it to the (multi-second) typewriter length.
+    const taglineTween = gsap.fromTo(
+      taglineRef.current,
+      { opacity: 0, y: 16 },
+      { opacity: 1, y: 0, duration: 0.65, delay: 0.5, ease: "power2.out" },
+    );
+    const btnTween = gsap.fromTo(
+      btnRef.current,
+      { opacity: 0, y: 16 },
+      { opacity: 1, y: 0, duration: 0.65, delay: 0.7, ease: "power2.out" },
+    );
 
     startBlink();
     run();
@@ -136,6 +144,8 @@ export default function IntroOverlay() {
     return () => {
       deadRef.current = true;
       stopBlink();
+      taglineTween.kill();
+      btnTween.kill();
     };
   }, [visible]);
 
