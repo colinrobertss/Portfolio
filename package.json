@@ -12,6 +12,8 @@
     "sync-tracks": "node scripts/sync-tracks.mjs"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
     "music-metadata": "^11.13.0",

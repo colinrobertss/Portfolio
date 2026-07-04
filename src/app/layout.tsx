@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Oswald } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import GrainOverlay from "@/components/GrainOverlay";
 import VisitorGlobe from "@/components/visitor-globe/VisitorGlobeLoader";
 import WireMeshEasterEgg from "@/components/EasterEgg/WireMeshEasterEggLoader";
@@ -35,6 +37,8 @@ export default function RootLayout({
         {children}
         <VisitorGlobe />
         <WireMeshEasterEgg />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
