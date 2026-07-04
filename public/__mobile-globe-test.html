@@ -20,7 +20,7 @@
       setTimeout(function() {
         var tabs = doc.querySelectorAll('div > button');
         var boardTab = Array.from(doc.querySelectorAll('button')).find(function(b) {
-          return b.textContent.indexOf('LEADERBOARD') !== -1;
+          return b.textContent.toLowerCase().indexOf('leaderboard') !== -1;
         });
         if (boardTab) boardTab.click();
       }, 700);
