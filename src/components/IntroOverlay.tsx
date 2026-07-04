@@ -122,20 +122,20 @@ export default function IntroOverlay() {
       if (cursorRef.current) await gsap.to(cursorRef.current, { opacity: 0, duration: 0.6, ease: "power2.out" });
     };
 
-    // Reveal the tagline + Enter button on their own short timeline,
-    // independent of the typewriter cycle above — a user can click through
-    // immediately without waiting for it to reach "Colin". A small stagger
-    // keeps the entrance from feeling like an instant dump of everything
-    // at once, without tying it to the (multi-second) typewriter length.
+    // Reveal the tagline + Enter button starting immediately on mount —
+    // independent of the typewriter cycle above, so a user can click
+    // through right away without waiting for it to reach "Colin". The fade
+    // (rather than an instant pop-in) plus a slight button stagger is what
+    // keeps this from feeling abrupt, not a delay before starting.
     const taglineTween = gsap.fromTo(
       taglineRef.current,
       { opacity: 0, y: 16 },
-      { opacity: 1, y: 0, duration: 0.65, delay: 0.5, ease: "power2.out" },
+      { opacity: 1, y: 0, duration: 0.65, ease: "power2.out" },
     );
     const btnTween = gsap.fromTo(
       btnRef.current,
       { opacity: 0, y: 16 },
-      { opacity: 1, y: 0, duration: 0.65, delay: 0.7, ease: "power2.out" },
+      { opacity: 1, y: 0, duration: 0.65, delay: 0.15, ease: "power2.out" },
     );
 
     startBlink();

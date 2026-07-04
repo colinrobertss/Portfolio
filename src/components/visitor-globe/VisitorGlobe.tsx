@@ -15,6 +15,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { WireGlobe, type WireGlobeMode, type WireGlobePin } from "./wire-globe";
 import { WORLD_CITIES, type CityTuple } from "@/lib/world-cities";
+import { searchCities, type GeoResult } from "./geocode";
 
 const ACCENT = "#9a917f"; // dotted-land color — subdued warm gray
 const PIN_ACCENT = "#c2703f"; // visitor pins — portfolio orange (single accent)
@@ -169,6 +170,14 @@ export default function VisitorGlobe() {
   const [pins, setPins] = useState<Pin[]>(loadPins);
   const [placing, setPlacing] = useState(false);
   const [query, setQuery] = useState("");
+  // Tagged with the (trimmed) query it was resolved for, so a slow response
+  // for an old query can never render as if it belonged to what's typed now
+  // — see `isCurrent` below.
+  const [search, setSearch] = useState<{ query: string; status: "ok" | "empty" | "error"; results: GeoResult[] }>({
+    query: "",
+    status: "empty",
+    results: [],
+  });
 
   const stageRef = useRef<HTMLDivElement>(null);
   const wireRef = useRef<WireGlobe | null>(null);
@@ -274,24 +283,47 @@ export default function VisitorGlobe() {
     if (wireRef.current) wireRef.current.setPlacing(placing);
   }, [placing]);
 
-  /* ----- search ----- */
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (q.length < 2) return [];
-    const starts: CityTuple[] = [],
-      has: CityTuple[] = [];
-    for (const c of WORLD_CITIES) {
-      const n = c[0].toLowerCase();
-      if (n.startsWith(q)) starts.push(c);
-      else if (n.includes(q) || c[1].toLowerCase().includes(q)) has.push(c);
-      if (starts.length >= 6) break;
-    }
-    return starts.concat(has).slice(0, 6);
+  /* ----- search: debounced live geocoding against Nominatim (OpenStreetMap) -----
+   * Query length < 2 is handled entirely by the render-time `showResults` gate
+   * below rather than resetting state here, so this effect never calls
+   * setState synchronously in its body — only from the promise callbacks,
+   * once the debounce has actually elapsed and a real response comes back. */
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      searchCities(q, controller.signal)
+        .then((found) => {
+          setSearch({ query: q, status: found.length ? "ok" : "empty", results: found });
+        })
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          setSearch({ query: q, status: "error", results: [] });
+        });
+    }, 400);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [query]);
+
+  const trimmedQuery = query.trim();
+  const showResults = trimmedQuery.length >= 2;
+  // While the debounce is pending or a request is in flight for the current
+  // query, `search` still reflects whatever query it was last resolved for —
+  // treat anything not tagged for the current query as "still loading" so a
+  // slow/stale response never flashes results for a different query.
+  const isSearchCurrent = search.query === trimmedQuery;
+  const results = isSearchCurrent ? search.results : [];
+  const searchStatus: "loading" | "ok" | "empty" | "error" = isSearchCurrent ? search.status : "loading";
+
   const pickResult = useCallback(
-    (c: CityTuple) => {
+    (r: GeoResult) => {
       setQuery("");
-      placePin(c[2], c[3], { city: c[0], country: c[1] });
+      setSearch({ query: "", status: "empty", results: [] });
+      placePin(r.lat, r.lng, { city: r.city, country: r.country });
     },
     [placePin],
   );
@@ -482,7 +514,7 @@ export default function VisitorGlobe() {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && results[0]) pickResult(results[0]);
                       }}
-                      placeholder="Search a city or country&hellip;"
+                      placeholder="Search a city or town…"
                       style={{
                         width: "100%",
                         boxSizing: "border-box",
@@ -497,7 +529,7 @@ export default function VisitorGlobe() {
                         boxShadow: "0 6px 16px rgba(26,24,20,0.10)",
                       }}
                     />
-                    {results.length > 0 && (
+                    {showResults && (
                       <div
                         style={{
                           marginTop: 6,
@@ -508,27 +540,52 @@ export default function VisitorGlobe() {
                           boxShadow: "0 10px 24px rgba(26,24,20,0.16)",
                         }}
                       >
-                        {results.map((c, i) => (
+                        {searchStatus === "loading" && (
+                          <div style={{ padding: "10px 13px", fontSize: 12, color: "#857a66" }}>Searching…</div>
+                        )}
+                        {searchStatus === "empty" && (
+                          <div style={{ padding: "10px 13px", fontSize: 12, color: "#857a66" }}>No matches found</div>
+                        )}
+                        {searchStatus === "error" && (
+                          <div style={{ padding: "10px 13px", fontSize: 12, color: "#857a66" }}>
+                            Search unavailable — try again
+                          </div>
+                        )}
+                        {searchStatus === "ok" &&
+                          results.map((r, i) => (
+                            <div
+                              key={r.id}
+                              className="vg-search-res"
+                              onClick={() => pickResult(r)}
+                              style={{
+                                display: "flex",
+                                alignItems: "baseline",
+                                justifyContent: "space-between",
+                                gap: 8,
+                                padding: "9px 13px",
+                                cursor: "pointer",
+                                borderTop: i ? "1px solid #e3d9c7" : "none",
+                              }}
+                            >
+                              <span style={{ fontSize: 13, color: "#1a1a1a", fontWeight: 500 }}>{r.city}</span>
+                              <span style={{ fontSize: 10.5, letterSpacing: "0.5px", textTransform: "uppercase", color: "#857a66" }}>
+                                {r.country}
+                              </span>
+                            </div>
+                          ))}
+                        {searchStatus === "ok" && (
                           <div
-                            key={c[0] + i}
-                            className="vg-search-res"
-                            onClick={() => pickResult(c)}
                             style={{
-                              display: "flex",
-                              alignItems: "baseline",
-                              justifyContent: "space-between",
-                              gap: 8,
-                              padding: "9px 13px",
-                              cursor: "pointer",
-                              borderTop: i ? "1px solid #e3d9c7" : "none",
+                              padding: "6px 13px",
+                              fontSize: 9,
+                              letterSpacing: "0.3px",
+                              color: "#a89f8d",
+                              borderTop: "1px solid #e3d9c7",
                             }}
                           >
-                            <span style={{ fontSize: 13, color: "#1a1a1a", fontWeight: 500 }}>{c[0]}</span>
-                            <span style={{ fontSize: 10.5, letterSpacing: "0.5px", textTransform: "uppercase", color: "#857a66" }}>
-                              {c[1]}
-                            </span>
+                            Search by OpenStreetMap
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
                   </div>
