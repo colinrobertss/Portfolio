@@ -7,6 +7,16 @@ import { WireMeshVisualizer } from "./wire-mesh-visualizer";
 
 type Phase = "closed" | "open" | "minimized";
 
+// The volume popup renders a real horizontal <input type="range"> rotated
+// -90deg into a vertical slider (min at bottom, max at top) — a standard
+// cross-browser trick that keeps native pointer/touch hit-testing intact
+// (it just operates on the rotated box), unlike a hand-rolled vertical
+// slider. THICKNESS is the input's pre-rotation height, i.e. its touch
+// target once rotated — deliberately much taller than the 6px track the
+// old inline slider used, which was too thin to reliably hit with a finger.
+const VOLUME_SLIDER_LENGTH = 120;
+const VOLUME_SLIDER_THICKNESS = 40;
+
 function buildShuffleOrder(current: number, length: number): number[] {
   const order = Array.from({ length }, (_, i) => i);
   for (let i = order.length - 1; i > 0; i--) {
@@ -80,6 +90,13 @@ function MuteIcon() {
     </svg>
   );
 }
+function ChevronUpIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M6 15l6-6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function CloseIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -99,12 +116,27 @@ export default function WireMeshEasterEgg() {
   const [shuffle, setShuffle] = useState(false);
   const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
   const [shufflePointer, setShufflePointer] = useState(0);
+  const [volumePopupOpen, setVolumePopupOpen] = useState(false);
 
   const mounted = phase !== "closed";
 
   const stageRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const engineRef = useRef<WireMeshVisualizer | null>(null);
+  const volumeControlRef = useRef<HTMLDivElement>(null);
+
+  // dismiss the volume popup on an outside tap/click, or when the overlay
+  // itself stops being fully open (minimized/closed)
+  useEffect(() => {
+    if (!volumePopupOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (volumeControlRef.current && !volumeControlRef.current.contains(e.target as Node)) {
+        setVolumePopupOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [volumePopupOpen]);
 
   // Mirrors the latest playlist-navigation state into a ref so the stable
   // `advance` callback (used both by next/prev buttons and by the "ended"
@@ -136,7 +168,10 @@ export default function WireMeshEasterEgg() {
   useEffect(() => {
     if (phase !== "open") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPhase("minimized");
+      if (e.key === "Escape") {
+        setVolumePopupOpen(false);
+        setPhase("minimized");
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -267,7 +302,10 @@ export default function WireMeshEasterEgg() {
           aria-modal={phase === "open" ? true : undefined}
           aria-label={phase === "open" ? "Audio visualizer" : "Expand audio visualizer"}
           tabIndex={phase === "minimized" ? 0 : undefined}
-          onClick={() => setPhase(phase === "open" ? "minimized" : "open")}
+          onClick={() => {
+            setVolumePopupOpen(false);
+            setPhase(phase === "open" ? "minimized" : "open");
+          }}
           onKeyDown={
             phase === "minimized"
               ? (e) => {
@@ -287,6 +325,7 @@ export default function WireMeshEasterEgg() {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  setVolumePopupOpen(false);
                   setPhase("closed");
                 }}
                 aria-label="Close"
@@ -365,7 +404,7 @@ export default function WireMeshEasterEgg() {
                   <span className="w-8 text-[10px] tabular-nums text-cream/50">{formatTime(duration)}</span>
                 </div>
 
-                <div className="mt-3 flex items-center gap-2">
+                <div ref={volumeControlRef} className="mt-3 flex items-center gap-1">
                   <button
                     type="button"
                     onClick={toggleMute}
@@ -375,16 +414,52 @@ export default function WireMeshEasterEgg() {
                   >
                     {silent ? <MuteIcon /> : <VolumeIcon />}
                   </button>
-                  <input
-                    type="range"
-                    aria-label="Volume"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={volume}
-                    onChange={handleVolumeChange}
-                    className="h-1.5 w-full cursor-pointer accent-accent"
-                  />
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setVolumePopupOpen((v) => !v)}
+                      aria-label="Show volume slider"
+                      aria-expanded={volumePopupOpen}
+                      title="Volume"
+                      className="flex h-5 w-5 items-center justify-center text-cream/50 transition-colors hover:text-cream/80"
+                    >
+                      <ChevronUpIcon />
+                    </button>
+
+                    {volumePopupOpen && (
+                      <div className="absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded-xl border border-cream/20 bg-ink/90 p-2 backdrop-blur">
+                        <div
+                          style={{
+                            position: "relative",
+                            width: VOLUME_SLIDER_THICKNESS,
+                            height: VOLUME_SLIDER_LENGTH,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <input
+                            type="range"
+                            aria-label="Volume"
+                            aria-orientation="vertical"
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            value={volume}
+                            onChange={handleVolumeChange}
+                            className="cursor-pointer accent-accent"
+                            style={{
+                              position: "absolute",
+                              width: VOLUME_SLIDER_LENGTH,
+                              height: VOLUME_SLIDER_THICKNESS,
+                              left: (VOLUME_SLIDER_THICKNESS - VOLUME_SLIDER_LENGTH) / 2,
+                              top: (VOLUME_SLIDER_LENGTH - VOLUME_SLIDER_THICKNESS) / 2,
+                              transform: "rotate(-90deg)",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>
