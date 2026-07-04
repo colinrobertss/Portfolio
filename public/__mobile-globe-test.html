@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head><style>html,body{margin:0;padding:0;} iframe{width:390px;height:844px;border:0;display:block;}</style></head>
+<body>
+<iframe id="f" src="http://localhost:3000/"></iframe>
+<script>
+  var f = document.getElementById('f');
+  var reloaded = false;
+  f.addEventListener('load', function() {
+    if (!reloaded) {
+      reloaded = true;
+      f.contentWindow.sessionStorage.setItem('intro-played', '1');
+      f.contentWindow.location.reload();
+      return;
+    }
+    setTimeout(function() {
+      var doc = f.contentDocument;
+      var trigger = doc.querySelector('button[aria-label="See where visitors are from"]');
+      if (trigger) trigger.click();
+    }, 800);
+  });
+</script>
+</body>
+</html>

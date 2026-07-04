@@ -162,6 +162,8 @@ function GlobeSvg({ color }: { color: string }) {
   );
 }
 
+const MOBILE_QUERY = "(max-width: 768px)";
+
 /* ---------- main widget ---------- */
 export default function VisitorGlobe() {
   const [open, setOpen] = useState(false);
@@ -170,6 +172,19 @@ export default function VisitorGlobe() {
   const [pins, setPins] = useState<Pin[]>(loadPins);
   const [placing, setPlacing] = useState(false);
   const [query, setQuery] = useState("");
+  // Below the breakpoint, the map and leaderboard can't fit side by side —
+  // one shows at a time via a tab, picked from `mobileTab`. Panels are kept
+  // mounted and toggled with CSS display rather than conditionally rendered,
+  // so switching tabs never tears down/recreates the WireGlobe 3D engine.
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"map" | "board">("map");
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
   // Tagged with the (trimmed) query it was resolved for, so a slow response
   // for an old query can never render as if it belonged to what's typed now
   // — see `isCurrent` below.
@@ -484,14 +499,59 @@ export default function VisitorGlobe() {
                 </div>
               </div>
 
+              {/* mobile tabs: map/globe and leaderboard can't fit side by side below the breakpoint */}
+              {isMobile && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    padding: "10px 14px",
+                    borderBottom: "1px solid #e3d9c7",
+                    background: "#f5efe4",
+                    flexShrink: 0,
+                  }}
+                >
+                  {(
+                    [
+                      ["map", "Map"],
+                      ["board", `Leaderboard (${pins.length})`],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setMobileTab(key)}
+                      style={{
+                        flex: 1,
+                        padding: "8px 0",
+                        borderRadius: 10,
+                        border: "none",
+                        cursor: "pointer",
+                        fontFamily: "'Oswald', sans-serif",
+                        fontWeight: 600,
+                        fontSize: 11,
+                        letterSpacing: "1px",
+                        textTransform: "uppercase",
+                        background: mobileTab === key ? "#1a1a1a" : "transparent",
+                        color: mobileTab === key ? "#f3ede2" : "#857a66",
+                        transition: "all .2s ease",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* body */}
-              <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+              <div style={{ display: "flex", flex: 1, minHeight: 0, flexDirection: isMobile ? "column" : "row" }}>
                 {/* stage (wireframe canvas mounts here) */}
                 <div
                   ref={stageRef}
                   style={{
                     position: "relative",
-                    flex: 1,
+                    display: isMobile && mobileTab !== "map" ? "none" : "block",
+                    flex: isMobile ? "1 1 auto" : 1,
+                    width: isMobile ? "100%" : undefined,
                     minWidth: 0,
                     background: "#e8dfce",
                     overflow: "hidden",
@@ -506,8 +566,8 @@ export default function VisitorGlobe() {
                     </div>
                   )}
 
-                  {/* search bar */}
-                  <div style={{ position: "absolute", top: 14, left: 14, width: 248, zIndex: 5 }}>
+                  {/* search bar — fluid width so it never overflows a narrow/mobile stage */}
+                  <div style={{ position: "absolute", top: 14, left: 14, width: "min(248px, calc(100% - 28px))", zIndex: 5 }}>
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
@@ -653,10 +713,12 @@ export default function VisitorGlobe() {
                 <div
                   className="vg-scroll"
                   style={{
-                    width: 224,
+                    display: isMobile && mobileTab !== "board" ? "none" : "block",
+                    width: isMobile ? "100%" : 224,
                     flexShrink: 0,
                     background: "#f5efe4",
-                    borderLeft: "1px solid #e3d9c7",
+                    borderLeft: isMobile ? "none" : "1px solid #e3d9c7",
+                    borderTop: isMobile ? "1px solid #e3d9c7" : "none",
                     overflowY: "auto",
                     padding: "16px 0",
                   }}
